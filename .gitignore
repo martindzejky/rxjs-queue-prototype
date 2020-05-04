@@ -1,0 +1,18 @@
+# editors
+.idea
+.vscode
+
+# compiled output
+dist/
+tmp/
+
+# system files
+.DS_Store
+
+# dependencies
+node_modules/
+
+# misc
+npm-debug.log
+yarn-error.log
+coverage

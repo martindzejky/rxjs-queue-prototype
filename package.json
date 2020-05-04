@@ -1,0 +1,38 @@
+{
+  "name": "rxjs-queue-prototype",
+  "version": "1.0.0",
+  "description": "Command queue prototype using Rxjs and Typescript.",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "ts-node --project spec/tsconfig.json node_modules/.bin/jasmine"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/martindzejky/rxjs-queue-prototype.git"
+  },
+  "author": "Martin Jakubik <martin@jakubik.info>",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "bugs": {
+    "url": "https://github.com/martindzejky/rxjs-queue-prototype/issues"
+  },
+  "homepage": "https://github.com/martindzejky/rxjs-queue-prototype#readme",
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{json,js,ts,md,yml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@types/jasmine": "^3.5.10",
+    "husky": "^4.2.5",
+    "jasmine": "^3.5.0",
+    "lint-staged": "^10.2.2",
+    "prettier": "^2.0.5",
+    "ts-node": "^8.10.1",
+    "typescript": "^3.8.3"
+  }
+}

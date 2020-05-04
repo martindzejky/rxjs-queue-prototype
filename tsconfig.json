@@ -1,0 +1,21 @@
+{
+    "include": ["src"],
+    "exclude": ["spec", "node_modules"],
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "lib": ["ESNext"],
+
+        "outDir": "dist",
+        "declaration": false,
+        "sourceMap": false,
+
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "forceConsistentCasingInFileNames": true,
+        "isolatedModules": true
+    }
+}
