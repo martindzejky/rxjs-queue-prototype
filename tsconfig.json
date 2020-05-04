@@ -3,7 +3,8 @@
     "exclude": ["spec", "node_modules"],
     "compilerOptions": {
         "target": "ESNext",
-        "module": "ESNext",
+        "module": "CommonJS",
+        "moduleResolution": "Node",
         "lib": ["ESNext"],
 
         "outDir": "dist",
