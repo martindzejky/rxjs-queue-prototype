@@ -22,4 +22,19 @@ describe('Queue', () => {
             expect(queue.length()).toEqual(3);
         });
     });
+
+    describe('#process', () => {
+        it('should process enqueued commands immediately', () => {
+            const pingCallback = jasmine.createSpy('ping');
+            const timeCallback = jasmine.createSpy('time');
+
+            queue.enqueue({ name: 'ping', callback: pingCallback });
+            queue.enqueue({ name: 'time', callback: timeCallback });
+
+            queue.process();
+
+            expect(pingCallback).toHaveBeenCalled();
+            expect(timeCallback).toHaveBeenCalled();
+        });
+    });
 });

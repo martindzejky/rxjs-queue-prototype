@@ -24,6 +24,11 @@ export class Queue {
     }
 
     /**
+     * Forces the queue to process all commands.
+     */
+    process(): void {}
+
+    /**
      * Returns the length of the queue - i. e. the number of yet
      * unprocessed commands.
      */
