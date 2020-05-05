@@ -1,12 +1,19 @@
+import { take, drop } from 'lodash';
+import { Command } from '../src/command';
 import { Queue } from '../src/queue';
+import { QueueOptions } from '../src/queue-options';
 
 describe('Queue', () => {
+    let queueOptions: QueueOptions;
     let queue: Queue;
 
     beforeEach(() => {
-        queue = new Queue({
+        queueOptions = {
             debounceTime: 500,
-        });
+            maxProcessedCommands: 10,
+        };
+
+        queue = new Queue(queueOptions);
     });
 
     describe('#enqueue', () => {
@@ -69,9 +76,47 @@ describe('Queue', () => {
 
             expect(callback).not.toHaveBeenCalled();
 
-            jasmine.clock().tick(1000);
+            jasmine.clock().tick(queueOptions.debounceTime + 100);
 
             expect(callback).toHaveBeenCalled();
+        });
+
+        it('should process commands enqueued before processing started', () => {
+            const callback = jasmine.createSpy('command');
+
+            queue.enqueue({ name: 'test', callback });
+            queue.enqueue({ name: 'time' });
+            queue.enqueue({ name: 'cookies' });
+
+            queue.startProcessing();
+            jasmine.clock().tick(queueOptions.debounceTime + 100);
+
+            expect(callback).toHaveBeenCalled();
+        });
+
+        it('should process commands after the buffer limit is reached', () => {
+            queue.startProcessing();
+
+            const commands: Command[] = [...Array(15)].map(
+                (_, i) =>
+                    ({
+                        name: `test ${i}`,
+                        callback: jasmine.createSpy(`command callback ${i}`),
+                    } as Command),
+            );
+
+            commands.forEach(command => queue.enqueue(command));
+
+            take(commands, queueOptions.maxProcessedCommands).forEach(command =>
+                expect(command.callback).toHaveBeenCalled(),
+            );
+
+            take(
+                drop(commands, queueOptions.maxProcessedCommands),
+                queueOptions.maxProcessedCommands,
+            ).forEach(command =>
+                expect(command.callback).not.toHaveBeenCalled(),
+            );
         });
     });
 });
