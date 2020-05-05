@@ -11,7 +11,6 @@ export class Queue {
     constructor() {
         // create the subjects
         this.rawEnqueuedCommands = new Subject<Command>();
-        this.counterSubject = new BehaviorSubject<number>(0);
         this.processSubject = new Subject<void>();
 
         this.initializeCounter();
@@ -39,24 +38,7 @@ export class Queue {
      */
     startProcessing(): void {}
 
-    /**
-     * Returns the length of the queue - i. e. the number of yet
-     * unprocessed commands.
-     */
-    length(): number {
-        return this.counterSubject.value;
-    }
-
     // PRIVATE
-
-    /**
-     * Initialize the counter behaviour subject.
-     */
-    private initializeCounter() {
-        this.rawEnqueuedCommands
-            .pipe(scan(acc => acc + 1, 0))
-            .subscribe(this.counterSubject);
-    }
 
     /**
      * Initialize the manual process pipeline.
@@ -78,11 +60,6 @@ export class Queue {
                 command.callback!({});
             });
     }
-
-    /**
-     * Counter subject for storing the current queue length.
-     */
-    private counterSubject: BehaviorSubject<number>;
 
     /**
      * This subject emits when the queue is manually triggered to process
