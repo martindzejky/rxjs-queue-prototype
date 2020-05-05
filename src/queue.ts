@@ -33,6 +33,13 @@ export class Queue {
     }
 
     /**
+     * Start processing incoming commands.
+     * Also process any buffered commands already enqueued
+     * before the processing started.
+     */
+    startProcessing(): void {}
+
+    /**
      * Returns the length of the queue - i. e. the number of yet
      * unprocessed commands.
      */

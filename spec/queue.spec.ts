@@ -49,4 +49,27 @@ describe('Queue', () => {
             expect(timeCallback).not.toHaveBeenCalled();
         });
     });
+
+    describe('#startProcessing', () => {
+        beforeEach(() => {
+            jasmine.clock().install();
+        });
+
+        afterEach(() => {
+            jasmine.clock().uninstall();
+        });
+
+        it('should process commands after a debounce', () => {
+            const callback = jasmine.createSpy('command');
+
+            queue.startProcessing();
+            queue.enqueue({ name: 'test', callback });
+
+            expect(callback).not.toHaveBeenCalled();
+
+            jasmine.clock().tick(1000);
+
+            expect(callback).toHaveBeenCalled();
+        });
+    });
 });
