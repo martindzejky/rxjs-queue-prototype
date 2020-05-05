@@ -2,10 +2,10 @@
     "include": ["src"],
     "exclude": ["spec", "node_modules"],
     "compilerOptions": {
-        "target": "ESNext",
+        "target": "ES2019",
         "module": "CommonJS",
         "moduleResolution": "Node",
-        "lib": ["ESNext"],
+        "lib": ["ES2020"],
 
         "outDir": "dist",
         "declaration": false,

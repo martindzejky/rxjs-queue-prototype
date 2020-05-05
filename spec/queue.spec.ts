@@ -4,7 +4,9 @@ describe('Queue', () => {
     let queue: Queue;
 
     beforeEach(() => {
-        queue = new Queue();
+        queue = new Queue({
+            debounceTime: 500,
+        });
     });
 
     describe('#enqueue', () => {

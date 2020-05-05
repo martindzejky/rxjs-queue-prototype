@@ -1,6 +1,15 @@
+import { from, merge, Observable, ReplaySubject, Subject } from 'rxjs';
+import {
+    bufferWhen,
+    debounceTime,
+    filter,
+    first,
+    flatMap,
+    map,
+    mapTo,
+} from 'rxjs/operators';
 import { Command } from './command';
-import { Subject, BehaviorSubject, from } from 'rxjs';
-import { buffer, filter, flatMap, scan } from 'rxjs/operators';
+import { QueueOptions } from './queue-options';
 
 /**
  * The purpose of this prototype - the **Queue**! It handles commands,
@@ -8,27 +17,49 @@ import { buffer, filter, flatMap, scan } from 'rxjs/operators';
  * in the README.
  */
 export class Queue {
-    constructor() {
+    constructor(private options: QueueOptions) {
         // create the subjects
-        this.rawEnqueuedCommands = new Subject<Command>();
-        this.processSubject = new Subject<void>();
+        this.rawEnqueuedCommands$ = new Subject<Command>();
+        this.process$ = new Subject<void>();
 
-        this.initializeCounter();
-        this.initializeQueueProcessing();
+        // create a replay subject to record commands enqueued
+        // before processing starts
+        const replayedEnqueuedCommands$ = new ReplaySubject<Command>();
+        this.rawEnqueuedCommands$.subscribe(replayedEnqueuedCommands$);
+
+        // make the queue observable
+        this.queue$ = replayedEnqueuedCommands$.pipe(
+            // buffer commands so they are processed in bulk
+            bufferWhen(this.makeBufferLimiter.bind(this)),
+
+            // convert the buffered command array back into
+            // a sequence of emitted commands
+            flatMap(commands => from(commands)),
+
+            // filter only those that have a callback functions,
+            // other commands are already done
+            filter(command => !!command.callback),
+
+            // call command callbacks
+            map(command => {
+                command.callback!({});
+            }),
+        );
     }
 
     /**
      * Adds a new command to the queue for processing.
      */
     enqueue(command: Command): void {
-        this.rawEnqueuedCommands.next(command);
+        this.rawEnqueuedCommands$.next(command);
     }
 
     /**
      * Forces the queue to process all commands.
      */
     process(): void {
-        this.processSubject.next();
+        this.startProcessing();
+        this.process$.next();
     }
 
     /**
@@ -36,40 +67,58 @@ export class Queue {
      * Also process any buffered commands already enqueued
      * before the processing started.
      */
-    startProcessing(): void {}
+    startProcessing(): void {
+        if (!this.isProcessing) {
+            this.isProcessing = true;
+            this.queue$.subscribe();
+        }
+    }
 
     // PRIVATE
 
     /**
-     * Initialize the manual process pipeline.
+     * Make an observable that emits when the command buffer is
+     * ready to be processed.
      */
-    private initializeQueueProcessing() {
-        this.rawEnqueuedCommands
-            .pipe(
-                buffer(this.processSubject),
+    private makeBufferLimiter(): Observable<void> {
+        // process observable
+        const process$ = this.process$;
 
-                // convert the buffered command array back into
-                // a sequence of emitted commands
-                flatMap(commands => from(commands)),
+        // debouncing observable
+        const debounce$ = this.rawEnqueuedCommands$.pipe(
+            debounceTime(this.options.debounceTime),
+        );
 
-                // filter only those that have a callback functions,
-                // other commands are already done
-                filter(command => !!command.callback),
-            )
-            .subscribe(command => {
-                command.callback!({});
-            });
+        // make the final observable
+        return merge(process$, debounce$).pipe(
+            // close the buffer as soon as the first merged
+            // observable emits
+            first(),
+
+            mapTo(undefined),
+        );
     }
+
+    /**
+     * True if the queue is processing commands.
+     */
+    private isProcessing = false;
 
     /**
      * This subject emits when the queue is manually triggered to process
      * its commands.
      */
-    private processSubject: Subject<void>;
+    private readonly process$: Subject<void>;
 
     /**
      * Raw commands coming from outside. Commands are pushed imperatively
      * into this subject.
      */
-    private rawEnqueuedCommands: Subject<Command>;
+    private readonly rawEnqueuedCommands$: Subject<Command>;
+
+    /**
+     * The final queue observable that, when subscribed, starts
+     * processing commands.
+     */
+    private readonly queue$: Observable<void>;
 }
