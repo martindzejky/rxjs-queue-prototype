@@ -36,5 +36,17 @@ describe('Queue', () => {
             expect(pingCallback).toHaveBeenCalled();
             expect(timeCallback).toHaveBeenCalled();
         });
+
+        it('should not process commands enqueued after the call', () => {
+            const pingCallback = jasmine.createSpy('ping');
+            const timeCallback = jasmine.createSpy('time');
+
+            queue.enqueue({ name: 'ping', callback: pingCallback });
+            queue.process();
+            queue.enqueue({ name: 'time', callback: timeCallback });
+
+            expect(pingCallback).toHaveBeenCalled();
+            expect(timeCallback).not.toHaveBeenCalled();
+        });
     });
 });
