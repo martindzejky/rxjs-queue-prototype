@@ -2,12 +2,22 @@ import { take, drop } from 'lodash';
 import { Command } from '../src/command';
 import { Queue } from '../src/queue';
 import { QueueOptions } from '../src/queue-options';
+import { Transport } from '../src/transport';
 
 describe('Queue', () => {
+    let transport: Transport;
     let queueOptions: QueueOptions;
     let queue: Queue;
 
     beforeEach(() => {
+        transport = new Transport();
+
+        spyOn(transport, 'send').and.callThrough();
+
+        spyOn(transport, 'makeDataForCommand').and.callFake(command => ({
+            data: `${command.name} data`,
+        }));
+
         queueOptions = {
             debounceTime: 500,
             maxProcessedCommands: 10,
@@ -116,6 +126,27 @@ describe('Queue', () => {
                 queueOptions.maxProcessedCommands,
             ).forEach(command =>
                 expect(command.callback).not.toHaveBeenCalled(),
+            );
+        });
+
+        it('should send commands in bulk through the transport', () => {
+            const callback = jasmine.createSpy('command');
+
+            queue.enqueue({ name: 'test', callback });
+            queue.enqueue({ name: 'ping' });
+            queue.enqueue({ name: 'ping' });
+            queue.enqueue({ name: 'ping' });
+            queue.startProcessing();
+
+            jasmine.clock().tick(queueOptions.debounceTime + 100);
+
+            expect(transport.send).toHaveBeenCalledTimes(1);
+            expect(transport.makeDataForCommand).toHaveBeenCalledTimes(4);
+
+            expect(callback).toHaveBeenCalledWith(
+                jasmine.objectContaining({
+                    data: 'command data',
+                }),
             );
         });
     });
