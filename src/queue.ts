@@ -90,7 +90,6 @@ export class Queue {
 
         // replay all stored commands enqueued before the processing started
         this.replayedCommands$.subscribe(this.rawEnqueuedCommands$);
-        this.replayedCommands$.complete();
     }
 
     // PRIVATE
