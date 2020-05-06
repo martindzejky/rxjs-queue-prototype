@@ -94,7 +94,7 @@ describe('Queue', () => {
             expect(callback).toHaveBeenCalled();
         });
 
-        it('should process commands after the buffer limit is reached', () => {
+        it('should not process commands after the buffer limit is reached', () => {
             queue.startProcessing();
 
             const commands: Command[] = [...Array(15)].map(

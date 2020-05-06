@@ -1,4 +1,4 @@
-import { from, merge, Observable, ReplaySubject, Subject } from 'rxjs';
+import { from, merge, Observable, Subject } from 'rxjs';
 import {
     bufferWhen,
     debounceTime,
@@ -7,6 +7,7 @@ import {
     flatMap,
     map,
     mapTo,
+    scan,
 } from 'rxjs/operators';
 import { Command } from './command';
 import { QueueOptions } from './queue-options';
@@ -22,15 +23,10 @@ export class Queue {
         this.rawEnqueuedCommands$ = new Subject<Command>();
         this.process$ = new Subject<void>();
 
-        // create a replay subject to record commands enqueued
-        // before processing starts
-        const replayedEnqueuedCommands$ = new ReplaySubject<Command>();
-        this.rawEnqueuedCommands$.subscribe(replayedEnqueuedCommands$);
-
         // make the queue observable
-        this.queue$ = replayedEnqueuedCommands$.pipe(
+        this.queue$ = this.rawEnqueuedCommands$.pipe(
             // buffer commands so they are processed in bulk
-            bufferWhen(this.makeBufferLimiter.bind(this)),
+            bufferWhen(() => this.makeBufferLimiter()),
 
             // convert the buffered command array back into
             // a sequence of emitted commands
@@ -89,8 +85,14 @@ export class Queue {
             debounceTime(this.options.debounceTime),
         );
 
+        // limit maximum commands in buffer
+        const counterLimit$ = this.rawEnqueuedCommands$.pipe(
+            scan(counter => counter + 1, 0),
+            filter(count => count > this.options.maxProcessedCommands),
+        );
+
         // make the final observable
-        return merge(process$, debounce$).pipe(
+        return merge(process$, debounce$, counterLimit$).pipe(
             // close the buffer as soon as the first merged
             // observable emits
             first(),
