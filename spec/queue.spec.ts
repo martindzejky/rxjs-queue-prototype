@@ -23,7 +23,7 @@ describe('Queue', () => {
             maxProcessedCommands: 10,
         };
 
-        queue = new Queue(queueOptions);
+        queue = new Queue(queueOptions, transport);
     });
 
     describe('#enqueue', () => {
@@ -145,7 +145,7 @@ describe('Queue', () => {
 
             expect(callback).toHaveBeenCalledWith(
                 jasmine.objectContaining({
-                    data: 'command data',
+                    data: 'test data',
                 }),
             );
         });

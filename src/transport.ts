@@ -1,5 +1,5 @@
 import { Observable, of } from 'rxjs';
-import { delay, map } from 'rxjs/operators';
+import { delay, map, tap } from 'rxjs/operators';
 import { Command } from './command';
 
 /**
@@ -16,7 +16,7 @@ export class Transport {
     send(commands: Array<Command>): Observable<Array<Record<string, string>>> {
         return of(commands).pipe(
             // simulate the network with a random delay
-            delay(Math.random() * 200 + 100),
+            this.simulatedDelay > 0 ? delay(this.simulatedDelay) : tap(),
 
             // the API would return some data for the commands
             map(commands =>
@@ -35,4 +35,18 @@ export class Transport {
     makeDataForCommand(_: Command): Record<string, string> {
         return {};
     }
+
+    /**
+     * Sets the simulated network delay, used in tests.
+     */
+    setSimulatedDelay(delay: number) {
+        this.simulatedDelay = delay;
+    }
+
+    // PRIVATE
+
+    /**
+     * Simulated network delay, configurable in the tests.
+     */
+    private simulatedDelay = 0;
 }

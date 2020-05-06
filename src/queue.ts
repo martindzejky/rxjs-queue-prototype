@@ -1,4 +1,4 @@
-import { from, merge, Observable, ReplaySubject, Subject } from 'rxjs';
+import { from, merge, Observable, ReplaySubject, Subject, zip } from 'rxjs';
 import {
     bufferWhen,
     debounceTime,
@@ -11,6 +11,7 @@ import {
 } from 'rxjs/operators';
 import { Command } from './command';
 import { QueueOptions } from './queue-options';
+import { Transport } from './transport';
 
 /**
  * The purpose of this prototype - the **Queue**! It handles commands,
@@ -18,32 +19,56 @@ import { QueueOptions } from './queue-options';
  * in the README.
  */
 export class Queue {
-    constructor(private options: QueueOptions) {
+    constructor(private options: QueueOptions, transport: Transport) {
         // create the subjects
         this.rawEnqueuedCommands$ = new Subject<Command>();
         this.replayedCommands$ = new ReplaySubject<Command>();
         this.process$ = new Subject<void>();
 
-        // make the queue observable
-        this.queue$ = this.rawEnqueuedCommands$.pipe(
+        // start by making an observable of buffered commands
+        const bufferedCommands$ = this.rawEnqueuedCommands$.pipe(
             // buffer commands so they are processed in bulk
             bufferWhen(() => this.makeBufferLimiter()),
 
             // filter empty buffers, could be triggered by calling process()
             // manually multiple times
             filter(buffer => buffer.length > 0),
+        );
 
+        // next, make an observable for the network requests
+        const networkData$ = bufferedCommands$.pipe(
+            // send the commands to the API
+            flatMap(commands => transport.send(commands)),
+
+            // convert the data array into a series of emitted
+            // data objects
+            flatMap(data => from(data)),
+        );
+
+        // next, prepare an observable that just emits
+        // the buffered commands one by one
+        const commandsOneByOne$ = bufferedCommands$.pipe(
             // convert the buffered command array back into
             // a sequence of emitted commands
             flatMap(commands => from(commands)),
+        );
 
-            // filter only those that have a callback functions,
-            // other commands are already done
-            filter(command => !!command.callback),
+        // finally, make the queue observable
+        this.queue$ = zip(
+            // zip together commands and their data from the network.
+            // there should always be the same amount of commands and network
+            // data so zip makes perfect sense here
+            commandsOneByOne$,
+            networkData$,
+        ).pipe(
+            // filter only those commands that have a callback function,
+            // other commands are already finished and apparently don't need
+            // the network data
+            filter(([command]) => !!command.callback),
 
-            // call command callbacks
-            map(command => {
-                command.callback!({});
+            // call command callbacks with the data from the network
+            map(([command, data]) => {
+                command.callback!(data);
             }),
         );
     }
