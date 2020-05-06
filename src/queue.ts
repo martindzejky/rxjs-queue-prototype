@@ -1,4 +1,4 @@
-import { from, merge, Observable, Subject } from 'rxjs';
+import { from, merge, Observable, ReplaySubject, Subject } from 'rxjs';
 import {
     bufferWhen,
     debounceTime,
@@ -21,12 +21,17 @@ export class Queue {
     constructor(private options: QueueOptions) {
         // create the subjects
         this.rawEnqueuedCommands$ = new Subject<Command>();
+        this.replayedCommands$ = new ReplaySubject<Command>();
         this.process$ = new Subject<void>();
 
         // make the queue observable
         this.queue$ = this.rawEnqueuedCommands$.pipe(
             // buffer commands so they are processed in bulk
             bufferWhen(() => this.makeBufferLimiter()),
+
+            // filter empty buffers, could be triggered by calling process()
+            // manually multiple times
+            filter(buffer => buffer.length > 0),
 
             // convert the buffered command array back into
             // a sequence of emitted commands
@@ -48,6 +53,12 @@ export class Queue {
      */
     enqueue(command: Command): void {
         this.rawEnqueuedCommands$.next(command);
+
+        // if not processing yet, store the commands in
+        // a replay subject for later
+        if (!this.isProcessing) {
+            this.replayedCommands$.next(command);
+        }
     }
 
     /**
@@ -64,10 +75,22 @@ export class Queue {
      * before the processing started.
      */
     startProcessing(): void {
-        if (!this.isProcessing) {
-            this.isProcessing = true;
-            this.queue$.subscribe();
+        if (this.isProcessing) {
+            return;
         }
+
+        this.isProcessing = true;
+
+        // subscribe to the queue observable, triggering the process
+        this.queue$.subscribe({
+            error: err => {
+                throw err;
+            },
+        });
+
+        // replay all stored commands enqueued before the processing started
+        this.replayedCommands$.subscribe(this.rawEnqueuedCommands$);
+        this.replayedCommands$.complete();
     }
 
     // PRIVATE
@@ -117,6 +140,12 @@ export class Queue {
      * into this subject.
      */
     private readonly rawEnqueuedCommands$: Subject<Command>;
+
+    /**
+     * Used for storing commands that are enqueued before
+     * processing starts.
+     */
+    private readonly replayedCommands$: ReplaySubject<Command>;
 
     /**
      * The final queue observable that, when subscribed, starts
