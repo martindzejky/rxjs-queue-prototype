@@ -1,4 +1,4 @@
-import { Observable, of } from 'rxjs';
+import { Observable, of, SchedulerLike } from 'rxjs';
 import { delay, map, tap } from 'rxjs/operators';
 import { Command } from './command';
 
@@ -9,6 +9,8 @@ import { Command } from './command';
  * empty data for reach received command.
  */
 export class Transport {
+    constructor(private scheduler?: SchedulerLike) {}
+
     /**
      * Simulates a network request for sending the commands to an API
      * and receiving the data for each command.
@@ -16,7 +18,9 @@ export class Transport {
     send(commands: Array<Command>): Observable<Array<Record<string, string>>> {
         return of(commands).pipe(
             // simulate the network with a random delay
-            this.simulatedDelay > 0 ? delay(this.simulatedDelay) : tap(),
+            this.simulatedDelay > 0
+                ? delay(this.simulatedDelay, this.scheduler)
+                : tap(),
 
             // the API would return some data for the commands
             map(commands =>

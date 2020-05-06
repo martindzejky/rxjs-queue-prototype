@@ -1,16 +1,19 @@
 import { take, drop } from 'lodash';
+import { VirtualTimeScheduler } from 'rxjs';
 import { Command } from '../src/command';
 import { Queue } from '../src/queue';
 import { QueueOptions } from '../src/queue-options';
 import { Transport } from '../src/transport';
 
 describe('Queue', () => {
+    let scheduler: VirtualTimeScheduler;
     let transport: Transport;
     let queueOptions: QueueOptions;
     let queue: Queue;
 
     beforeEach(() => {
-        transport = new Transport();
+        scheduler = new VirtualTimeScheduler();
+        transport = new Transport(scheduler);
 
         spyOn(transport, 'send').and.callThrough();
 
@@ -142,6 +145,30 @@ describe('Queue', () => {
 
             expect(transport.send).toHaveBeenCalledTimes(1);
             expect(transport.makeDataForCommand).toHaveBeenCalledTimes(4);
+
+            expect(callback).toHaveBeenCalledWith(
+                jasmine.objectContaining({
+                    data: 'test data',
+                }),
+            );
+        });
+
+        // disabled because I don't know how to force the delay operator to "tick"
+        it('should handle random network delays', () => {
+            transport.setSimulatedDelay(Math.random() * 200 + 100);
+
+            const callback = jasmine.createSpy('command');
+
+            queue.enqueue({ name: 'test', callback });
+            queue.enqueue({ name: 'ping' });
+            queue.enqueue({ name: 'ping' });
+            queue.startProcessing();
+
+            jasmine.clock().tick(queueOptions.debounceTime + 100);
+
+            // flush the transport scheduler. for some reason, jasmine.clock().tick()
+            // does not work with the delay operator :shrug:
+            scheduler.flush();
 
             expect(callback).toHaveBeenCalledWith(
                 jasmine.objectContaining({
